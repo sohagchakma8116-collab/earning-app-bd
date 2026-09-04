@@ -1,18 +1,43 @@
-export default function Home() {
-      return (
-        <main className="min-h-screen bg-gradient-to-b from-green-50 to-white p-6">
-          <div className="max-w-md mx-auto text-center">
-            <h1 className="text-3xl font-bold text-green-700">বাংলা আয় অ্যাপ</h1>
-            <p className="mt-4 text-gray-600">দৈনিক কাজ করে বিকাশে টাকা নিন</p>
-            
-            <div className="mt-8 p-4 bg-white rounded-lg shadow">
-              <h2 className="font-bold">আজকের টাস্ক</h2>
-              <p className="mt-2">ভিডিও দেখুন - 10 টাকা</p>
-              <button className="mt-3 bg-green-600 text-white px-4 py-2 rounded">শুরু করুন</button>
-            </div>
+'use client'
+import { useState } from 'react';
 
-            <p className="mt-6 text-sm text-gray-500">Balance: 0 টাকা</p>
+export default function Home() {
+  const [points, setPoints] = useState(0);
+  const [lastEarned, setLastEarned] = useState(0);
+
+  const tasks = [
+    { id: 1, name: "YouTube ভিডিও দেখো", reward: 5 },
+    { id: 2, name: "অ্যাপ ইনস্টল করো", reward: 10 },
+    { id: 3, name: "রেফার করো", reward: 20 }
+  ];
+
+  const handleCompleteTask = (reward) => {
+    setPoints(points + reward);
+    setLastEarned(reward);
+  };
+
+  return (
+    <main style={{ padding: '20px', fontFamily: 'Arial', background: '#f0f0f0', minHeight: '100vh' }}>
+      <div style={{ background: 'white', padding: '20px', borderRadius: '10px', textAlign: 'center' }}>
+        <h1>💰 Earning App BD</h1>
+        <h2>তোমার ব্যালেন্স: {points} পয়েন্ট</h2>
+        {lastEarned > 0 && <p style={{ color: 'green' }}>+{lastEarned} পয়েন্ট যোগ হয়েছে!</p>}
+      </div>
+
+      <div style={{ marginTop: '20px' }}>
+        <h3>টাস্ক সম্পন্ন করো:</h3>
+        {tasks.map(task => (
+          <div key={task.id} style={{ background: 'white', padding: '15px', margin: '10px 0', borderRadius: '8px' }}>
+            <p>{task.name}</p>
+            <button 
+              onClick={() => handleCompleteTask(task.reward)}
+              style={{ background: '#0070f3', color: 'white', border: 'none', padding: '10px', borderRadius: '5px', width: '100%' }}
+            >
+              সম্পন্ন করো +{task.reward} পয়েন্ট
+            </button>
           </div>
-        </main>
-      )
-}
+        ))}
+      </div>
+    </main>
+  );
+                }
