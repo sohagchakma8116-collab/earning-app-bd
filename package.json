@@ -1,17 +1,154 @@
-{
-  "name": "earning-app-bd",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "firebase": "^10.12.2",
-    "next": "14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+// ১. ভাষা ট্রান্সলেশন (বাংলা ও ইংরেজি)
+class AppTranslations extends Translations {
+  @override
+  Map<String, Map<String, String>> get keys => {
+        'en_US': {
+          'title': 'BD Earn & Win',
+          'min_withdraw': 'Min Withdraw: 200 BDT',
+          'req_ref': 'Required Referrals: 7',
+          'withdraw_closed': 'Withdrawal is closed on Friday & Saturday',
+          'bkash': 'bKash',
+          'nagad': 'Nagad',
+        },
+        'bn_BD': {
+          'title': 'বিডি আর্ন অ্যান্ড উইন',
+          'min_withdraw': 'সর্বনিম্ন উইথড্র: ২০০ টাকা',
+          'req_ref': 'প্রয়োজনীয় রেফার: ৭টি',
+          'withdraw_closed': 'শুক্রবার ও শনিবার উইথড্র বন্ধ থাকে',
+          'bkash': 'বিকাশ',
+          'nagad': 'নগদ',
+        }
+      };
+}
+
+// ২. অ্যাপ কন্ট্রোলার (লজিক ও রিয়েল-টাইম ফায়ারবেজ সিঙ্ক)
+class AppController extends GetxController {
+  var minWithdraw = 200.obs;
+  var reqReferral = 7.obs;
+  var isWithdrawOpenManual = true.obs;
+  var referBonus = 10.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    listenToSettings();
+  }
+
+  void listenToSettings() {
+    FirebaseFirestore.instance
+        .collection('settings')
+        .doc('app_config')
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        minWithdraw.value = snapshot.data()?['min_withdrawal'] ?? 200;
+        reqReferral.value = snapshot.data()?['required_referrals'] ?? 7;
+        isWithdrawOpenManual.value = snapshot.data()?['isWithdrawOpen'] ?? true;
+        referBonus.value = snapshot.data()?['refer_bonus'] ?? 10;
+      }
+    });
+  }
+
+  // শুক্র ও শনিবার উইথড্র অটোমেটিক বন্ধ রাখার চেক
+  bool isWithdrawDayOpen() {
+    int day = DateTime.now().weekday;
+    if (day == DateTime.friday || day == DateTime.saturday) {
+      return false; 
+    }
+    return isWithdrawOpenManual.value;
+  }
+}
+
+// ৩. মেইন ফাংশন ও অ্যাপ রান
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // আপনার ফায়ারবেজ কনফিগার এখানে বসাবেন
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: "YOUR_API_KEY",
+      appId: "YOUR_APP_ID",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+    ),
+  );
+  
+  Get.put(AppController());
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GetMaterialApp(
+      title: 'Bengali Earning App',
+      translations: AppTranslations(),
+      locale: const Locale('bn', 'BD'), // ডিফল্ট ভাষা বাংলা
+      fallbackLocale: const Locale('en', 'US'),
+      debugShowCheckedModeBanner: false,
+      home: const HomeScreen(),
+    );
+  }
+}
+
+// ৪. হোম স্ক্রিন ডিজাইন
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final AppController controller = Get.find();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('title'.tr),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language),
+            onPressed: () {
+              if (Get.locale?.languageCode == 'bn') {
+                Get.updateLocale(const Locale('en', 'US'));
+              } else {
+                Get.updateLocale(const Locale('bn', 'BD'));
+              }
+            },
+          )
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Obx(() => Text('সর্বনিম্ন উইথড্র: ${controller.minWithdraw.value} টাকা', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+            const SizedBox(height: 10),
+            Obx(() => Text('প্রয়োজনীয় রেফার: ${controller.reqReferral.value} জন', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+            const SizedBox(height: 20),
+            Obx(() {
+              bool isOpen = controller.isWithdrawDayOpen();
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isOpen ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  isOpen ? 'উইথড্র স্ট্যাটাস: চালু আছে ✅' : 'উইথড্র স্ট্যাটাস: বন্ধ আছে ❌ (শুক্রবার/শনিবার বা এডমিন কর্তৃক বন্ধ)',
+                  style: TextStyle(fontSize: 16, color: isOpen ? Colors.green[800] : Colors.red[800], fontWeight: FontWeight.bold),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
   }
 }
