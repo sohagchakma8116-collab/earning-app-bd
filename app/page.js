@@ -1,25 +1,45 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { auth, db } from './lib/firebase'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
 
 export default function Home() {
+  const [user, setUser] = useState(null)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [points, setPoints] = useState(0)
 
-  const earnPoint = () => {
-    setPoints(points + 10)
-    alert('অভিনন্দন! 10 পয়েন্ট পেয়েছো 🎉')
+  useEffect(() => {
+    onAuthStateChanged(auth, async (u) => {
+      if(u) {
+        setUser(u)
+        const snap = await getDoc(doc(db, "users", u.uid))
+        if(snap.exists()) setPoints(snap.data().points || 0)
+      }
+    })
+  }, [])
+
+  const signup = async () => {
+    const res = await createUserWithEmailAndPassword(auth, email, password)
+    await setDoc(doc(db, "users", res.user.uid), {email, points: 0})
   }
 
-  return (
-    <main style={{padding: '20px', textAlign: 'center', fontFamily: 'sans-serif'}}>
-      <h1>স্বাগতম Earning App BD তে!</h1>
-      <h2>তোমার পয়েন্ট: {points}</h2>
-      <p>প্রতি ক্লিকে 10 পয়েন্ট</p>
-      <button 
-        onClick={earnPoint}
-        style={{padding: '15px 30px', fontSize: '18px', background: 'green', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer'}}
-      >
-        পয়েন্ট আর্ন করুন
-      </button>
-    </main>
+  if(!user) return (
+    <div style={{padding:20, maxWidth:400, margin:'auto'}}>
+      <h1>Earning App BD</h1>
+      <input style={{width:'100%', padding:10, margin:5}} placeholder="Email" onChange={e=>setEmail(e.target.value)}/>
+      <input style={{width:'100%', padding:10, margin:5}} placeholder="Password" type="password" onChange={e=>setPassword(e.target.value)}/>
+      <button style={{width:'100%', padding:10}} onClick={signup}>Signup</button>
+      <button style={{width:'100%', padding:10}} onClick={()=>signInWithEmailAndPassword(auth, email, password)}>Login</button>
+    </div>
   )
-}
+
+  return (
+    <div style={{padding:20, textAlign:'center'}}>
+      <h1>স্বাগতম!</h1>
+      <h2>তোমার পয়েন্ট: {points}</h2>
+      <button onClick={()=>signOut(auth)}>Logout</button>
+    </div>
+  )
+    }
